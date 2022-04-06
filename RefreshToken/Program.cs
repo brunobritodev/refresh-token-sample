@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MiniValidation;
@@ -37,7 +38,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 });
 builder.Services.AddAuthorization();
 builder.Services.AddMemoryCache();
-builder.Services.AddJwksManager().UseJwtValidation();
+builder.Services.AddJwksManager().PersistKeysInMemory().UseJwtValidation();
+IdentityModelEventSource.ShowPII = true;
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -122,8 +124,7 @@ static async Task<string> GenerateAccessToken(UserManager<IdentityUser> userMana
 
 static async Task<string> GenerateRefreshToken(UserManager<IdentityUser> userManager, IJwtService jwtService, string? email)
 {
-    var user = await userManager.FindByEmailAsync(email);
-    var claims = new List<Claim> { new Claim(JwtRegisteredClaimNames.Sub, user.Id) };
+    var claims = new List<Claim> { new Claim(JwtRegisteredClaimNames.Email, email) };
 
     // Necessário converver para IdentityClaims
     var identityClaims = new ClaimsIdentity();
@@ -211,14 +212,14 @@ app.MapPost("/refresh-token", [AllowAnonymous] async (
         if (!MiniValidator.TryValidate(token, out var errors))
             return Results.ValidationProblem(errors);
 
-        var key = await jwtService.GetCurrentSigningCredentials();
         var handler = new JsonWebTokenHandler();
 
         var result = handler.ValidateToken(token.RefreshToken, new TokenValidationParameters()
         {
             ValidIssuer = "https://refreshtoken.test",
             ValidAudience = "RefreshToken.API",
-            IssuerSigningKey = key.Key,
+            RequireSignedTokens = false,
+            IssuerSigningKey = await jwtService.GetCurrentSecurityKey(),
         });
 
         if (!result.IsValid)
