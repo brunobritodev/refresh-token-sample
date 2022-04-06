@@ -17,3 +17,7 @@ Techs:
 1. Open VSCode and load folder
   * Open terminas (CTRL + \`)
   * dotnet run
+
+There is a video talking about this project
+
+[![Watch the video](https://img.youtube.com/vi/icOjZQsuYmE/hqdefault.jpg)](https://www.youtube.com/watch?v=t5iumvSNbgM)
