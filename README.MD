@@ -20,4 +20,4 @@ Techs:
 
 There is a video talking about this project
 
-[![Watch the video](https://img.youtube.com/vi/icOjZQsuYmE/hqdefault.jpg)](https://www.youtube.com/watch?v=t5iumvSNbgM)
+[![Watch the video](https://img.youtube.com/vi/t5iumvSNbgM/hqdefault.jpg)](https://www.youtube.com/watch?v=t5iumvSNbgM)
