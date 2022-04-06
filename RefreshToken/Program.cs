@@ -231,7 +231,7 @@ app.MapPost("/refresh-token", [AllowAnonymous] async (
                 return Results.BadRequest("User blocked");
 
         var claims = await userManager.GetClaimsAsync(user);
-        if (!claims.Any(c => c.Type == "TenhoQueRelogar" && c.Value == "true"))
+        if (claims.Any(c => c.Type == "TenhoQueRelogar" && c.Value == "true"))
             return Results.BadRequest("User must login again");
 
 
