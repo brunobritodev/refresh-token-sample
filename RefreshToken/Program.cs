@@ -124,7 +124,12 @@ static async Task<string> GenerateAccessToken(UserManager<IdentityUser> userMana
 
 static async Task<string> GenerateRefreshToken(UserManager<IdentityUser> userManager, IJwtService jwtService, string? email)
 {
-    var claims = new List<Claim> { new Claim(JwtRegisteredClaimNames.Email, email) };
+    var jti = Guid.NewGuid().ToString();
+    var claims = new List<Claim>
+    {
+        new Claim(JwtRegisteredClaimNames.Email, email),
+        new Claim(JwtRegisteredClaimNames.Jti, jti)
+    };
 
     // Necessário converver para IdentityClaims
     var identityClaims = new ClaimsIdentity();
@@ -142,9 +147,23 @@ static async Task<string> GenerateRefreshToken(UserManager<IdentityUser> userMan
         Expires = DateTime.Now.AddDays(30),
         TokenType = "rt+jwt"
     });
-
+    await UpdateLastGeneratedClaim(userManager, email, jti);
     var encodedJwt = handler.WriteToken(securityToken);
     return encodedJwt;
+}
+
+static async Task UpdateLastGeneratedClaim(UserManager<IdentityUser> userManager, string? email, string jti)
+{
+    var user = await userManager.FindByEmailAsync(email);
+    var claims = await userManager.GetClaimsAsync(user);
+    var newLastRtClaim = new Claim("LastRefreshToken", jti);
+
+    var claimLastRt = claims.FirstOrDefault(f => f.Type == "LastRefreshToken");
+    if (claimLastRt != null)
+        await userManager.ReplaceClaimAsync(user, claimLastRt, newLastRtClaim);
+    else
+        await userManager.AddClaimAsync(user, newLastRtClaim);
+
 }
 
 app.MapPost("/accounts", [AllowAnonymous] async (
@@ -226,11 +245,15 @@ app.MapPost("/refresh-token", [AllowAnonymous] async (
             return Results.BadRequest("Expired token");
 
         var user = await userManager.FindByEmailAsync(result.Claims[JwtRegisteredClaimNames.Email].ToString());
-        if(user.LockoutEnabled)
+        var claims = await userManager.GetClaimsAsync(user);
+
+        if (!claims.Any(c => c.Type == "LastRefreshToken" && c.Value == result.Claims[JwtRegisteredClaimNames.Jti].ToString()))
+            return Results.BadRequest("Expired token");
+
+        if (user.LockoutEnabled)
             if (user.LockoutEnd < DateTime.Now)
                 return Results.BadRequest("User blocked");
 
-        var claims = await userManager.GetClaimsAsync(user);
         if (claims.Any(c => c.Type == "TenhoQueRelogar" && c.Value == "true"))
             return Results.BadRequest("User must login again");
 
